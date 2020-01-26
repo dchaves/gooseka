@@ -1,0 +1,1 @@
+docker run -it --privileged -v /dev/input:/dev/input gooseka_controller
