@@ -1,0 +1,13 @@
+board_manager:
+  additional_urls: 
+    - https://dl.espressif.com/dl/package_esp32_index.json
+daemon:
+  port: "50051"
+directories:
+  data: /root/.arduino15
+  downloads: /root/.arduino15/staging
+  user: /root/Arduino
+logging:
+  file: ""
+  format: text
+  level: info
