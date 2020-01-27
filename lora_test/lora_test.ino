@@ -15,11 +15,22 @@
 #define BAND 866E6
 
 // When a packet is received, print its RSSI and contents.
-void onReceive(int packetSize) {
+void receive_task(void* param) {
     //Do stuff
-    Serial.print("Received packet with RSSI ");
-    Serial.println(LoRa.packetRssi());
-    Serial.println();
+    while(1) {
+        int packetSize = LoRa.parsePacket();
+        if (packetSize) {
+            Serial.print("Received byte 0x");
+            while (LoRa.available()) {
+                uint8_t data = LoRa.read();
+                Serial.print(data, HEX);
+            }
+            Serial.print(" with RSSI ");
+            Serial.println(LoRa.packetRssi());
+        }
+        vTaskDelay(1); // Without this line watchdog resets the board
+    }     
+    vTaskDelete(NULL);
 }
 
 // CPU #0
@@ -30,15 +41,15 @@ void control_task(void* param) {
     while(1){
         // Read commands from USB
         // Do Stuff
-        //if (Serial.available() > 0) {
-            uint8_t incomingByte = 0xCA;
-            Serial.println(incomingByte);
-            
+        if (Serial.available() > 0) {
+            uint8_t incomingByte = Serial.read();
+            Serial.print("Sent byte 0x");
+            Serial.println(incomingByte, HEX);
             // Send LoRa packet to receiver
             LoRa.beginPacket();
             LoRa.write(&incomingByte, 1); // MAX 255 bytes
             LoRa.endPacket();
-        //}
+        }
         vTaskDelay(1); // Without this line watchdog resets the board
     }
     vTaskDelete(NULL);
@@ -58,13 +69,15 @@ void setup() {
         Serial.println("LoRa init error.");
         while(1);
     }
+    LoRa.setSyncWord(0xCA);
     Serial.println("LoRa Initializing OK!");
     //Puts the radio in continuous receive mode
-    LoRa.receive();
-    LoRa.onReceive(onReceive);
+    //LoRa.receive();
+    //LoRa.onReceive(onReceive);
 
     // Init Serial Port listener task
     xTaskCreatePinnedToCore(control_task, "Control", 10000, NULL, 1, NULL, 0);
+    xTaskCreatePinnedToCore(receive_task, "Receive", 10000, NULL, 1, NULL, 1);
 }
 
 void loop() {
