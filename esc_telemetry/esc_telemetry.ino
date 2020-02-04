@@ -1,5 +1,7 @@
 #include <HardwareSerial.h>
 #include <ESP32Servo.h>
+#include <SPI.h>
+#include <LoRa.h>
 
 #include "gooseka_helpers.h"
 #include "gooseka_structs.h"
@@ -26,6 +28,27 @@ Servo RIGHT_ESC_servo;
 uint8_t LEFT_duty = 0;
 uint8_t RIGHT_duty = 0;
 
+ESC_control_t control;
+
+void receive_task(void* param) {
+    uint8_t LoRa_buffer[sizeof(ESC_control_t)];
+    uint8_t index;
+
+    while(1) {
+        int packetSize = LoRa.parsePacket();
+        if (packetSize == sizeof(ESC_control_t)) {
+            index = 0;
+            while (LoRa.available()) {
+                LoRa_buffer[index] = LoRa.read();
+                index++;
+            }
+            memcpy(&control,LoRa_buffer,sizeof(ESC_control_t));
+        }
+        vTaskDelay(1); // Without this line watchdog resets the board
+    }
+    vTaskDelete(NULL);
+}
+
 void setup() {
     // Console output
     Serial.begin(115200);
@@ -45,6 +68,20 @@ void setup() {
     // Configure servos
     LEFT_ESC_servo.attach(LEFT_PWM_PIN, PWM_MIN, PWM_MAX);
     RIGHT_ESC_servo.attach(RIGHT_PWM_PIN, PWM_MIN, PWM_MAX);
+
+    // Set SPI LoRa pins
+    SPI.begin(LORA_SCK, LORA_MISO, LORA_MOSI, LORA_SS);
+
+    // Setup LoRa transceiver module
+    LoRa.setPins(LORA_SS, LORA_RST, LORA_DIO0);
+    if(!LoRa.begin(LORA_BAND)) {
+        Serial.println("LoRa init error.");
+        while(1);
+    }
+    LoRa.setSyncWord(LORA_SYNCWORD);
+
+    // Start LoRa receiver task
+    xTaskCreatePinnedToCore(receive_task, "lora_receiver", 10000, NULL, 1, NULL, 1);
 }
 
 bool read_telemetry(HardwareSerial* serial, serial_buffer_t* serial_buffer, ESC_oneside_telemetry_t* telemetry) {
@@ -79,18 +116,20 @@ bool read_telemetry(HardwareSerial* serial, serial_buffer_t* serial_buffer, ESC_
 void loop() {
     // TODO RECEIVE COMMANDS VIA LORA
     /************** REPLACE ***********************/
-    char command = '0';
-    if(Serial.available()) {
-        command = Serial.read();
-        if(command == '+') {
-            LEFT_duty = min(LEFT_duty + 32, 255);
-            RIGHT_duty = min(RIGHT_duty + 32, 255);
-        } else if (command == '-') {
-            LEFT_duty = max(LEFT_duty - 32, 0);
-            RIGHT_duty = max(RIGHT_duty - 32, 0);
-        }
-    }
+    // char command = '0';
+    // if(Serial.available()) {
+    //     command = Serial.read();
+    //     if(command == '+') {
+    //         LEFT_duty = min(LEFT_duty + 32, 255);
+    //         RIGHT_duty = min(RIGHT_duty + 32, 255);
+    //     } else if (command == '-') {
+    //         LEFT_duty = max(LEFT_duty - 32, 0);
+    //         RIGHT_duty = max(RIGHT_duty - 32, 0);
+    //     }
+    // }
     /************** REPLACE END ********************/
+    LEFT_duty = control.left.duty;
+    RIGHT_duty = control.right.duty;
     
     LEFT_ESC_servo.write(map(LEFT_duty,0,255,0,180));
     RIGHT_ESC_servo.write(map(RIGHT_duty,0,255,0,180));
@@ -113,6 +152,8 @@ void loop() {
         LEFT_telemetry_complete = false;
         RIGHT_telemetry_complete = false;
         print_telemetry(&Serial, &telemetry);
-        // TODO: SEND TELEMETRY VIA LORA
+        LoRa.beginPacket();
+        LoRa.write((uint8_t *)&telemetry, sizeof(ESC_telemetry_t)); 
+        LoRa.endPacket();
     }
 }
