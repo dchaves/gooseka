@@ -14,14 +14,15 @@ serial_buffer_t LEFT_serial_buffer;
 serial_buffer_t RIGHT_serial_buffer;
 
 ESC_telemetry_t telemetry;
-bool LEFT_telemetry_complete =  false;
-bool RIGHT_telemetry_complete =  false;
+
+bool LEFT_telemetry_complete;
+bool RIGHT_telemetry_complete;
 
 Servo LEFT_ESC_servo;
 Servo RIGHT_ESC_servo;
 
-uint8_t LEFT_duty = 0;
-uint8_t RIGHT_duty = 0;
+uint8_t LEFT_duty;
+uint8_t RIGHT_duty;
 
 ESC_control_t control;
 
@@ -102,7 +103,13 @@ void ESC_control_task(void* param) {
 
 void setup() {
     // Initialize structs and arrays
-    // TO DO
+    LEFT_telemetry_complete = false;
+    RIGHT_telemetry_complete = false;
+    LEFT_duty = 0;
+    RIGHT_duty = 0;
+    memset(&LEFT_serial_buffer,0,sizeof(serial_buffer_t));
+    memset(&RIGHT_serial_buffer,0,sizeof(serial_buffer_t));
+    memset(&telemetry,0,sizeof(ESC_telemetry_t));
 
     // Console output
     Serial.begin(115200);
