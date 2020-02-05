@@ -55,19 +55,6 @@ void LoRa_receive_task(void* param) {
 // 3. If both telemetries are complete, send LoRa message
 void ESC_control_task(void* param) {
     while (1) {
-        /************** REPLACE ***********************/
-        // char command = '0';
-        // if(Serial.available()) {
-        //     command = Serial.read();
-        //     if(command == '+') {
-        //         LEFT_duty = min(LEFT_duty + 32, 255);
-        //         RIGHT_duty = min(RIGHT_duty + 32, 255);
-        //     } else if (command == '-') {
-        //         LEFT_duty = max(LEFT_duty - 32, 0);
-        //         RIGHT_duty = max(RIGHT_duty - 32, 0);
-        //     }
-        // }
-        /************** REPLACE END ********************/
         LEFT_duty = control.left.duty;
         RIGHT_duty = control.right.duty;
         
