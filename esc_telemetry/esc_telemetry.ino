@@ -91,7 +91,7 @@ void ESC_control_task(void* param) {
         if(LEFT_telemetry_complete && RIGHT_telemetry_complete) {
             LEFT_telemetry_complete = false;
             RIGHT_telemetry_complete = false;
-            print_telemetry(&Serial, &telemetry);
+            PRINT_TELEMETRY(&Serial, &telemetry);
             LoRa.beginPacket();
             LoRa.write((uint8_t *)&telemetry, sizeof(ESC_telemetry_t)); 
             LoRa.endPacket();
@@ -112,7 +112,7 @@ void setup() {
     memset(&telemetry,0,sizeof(ESC_telemetry_t));
 
     // Console output
-    Serial.begin(115200);
+    SERIAL_BEGIN(115200);
 
     // Telemetry serial lines
     LEFT_ESC_serial.begin(115200, SERIAL_8N1, LEFT_TELEMETRY_READ_PIN, LEFT_TELEMETRY_UNUSED_PIN);
@@ -136,7 +136,7 @@ void setup() {
     // Setup LoRa transceiver module
     LoRa.setPins(LORA_SS, LORA_RST, LORA_DIO0);
     if(!LoRa.begin(LORA_BAND)) {
-        Serial.println("LoRa init error.");
+        SERIAL_PRINTLN("LoRa init error.");
         while(1);
     }
     LoRa.setSyncWord(LORA_SYNCWORD);
