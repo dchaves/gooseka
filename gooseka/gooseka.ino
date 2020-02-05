@@ -131,7 +131,7 @@ void setup() {
     // Start ESC control task
     xTaskCreatePinnedToCore(ESC_control_task, "ESC_controller", 10000, NULL, 1, NULL, 0);
     // Start LoRa receiver task
-    xTaskCreatePinnedToCore(LoRa_receive_task, "lora_receiver", 10000, NULL, 1, NULL, 1);
+    xTaskCreatePinnedToCore(LoRa_receive_task, "LoRa_receiver", 10000, NULL, 1, NULL, 1);
 }
 
 void loop() {
