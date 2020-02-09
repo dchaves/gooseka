@@ -42,6 +42,10 @@ void LoRa_receive_task(void* param) {
                 index++;
             }
             memcpy(&control,LoRa_buffer,sizeof(ESC_control_t));
+            SERIAL_PRINT("Received commands: ");
+            SERIAL_PRINT(control.left.duty);
+            SERIAL_PRINT(",");
+            SERIAL_PRINTLN(control.right.duty);
         }
         vTaskDelay(1); // Without this line watchdog resets the board
     }

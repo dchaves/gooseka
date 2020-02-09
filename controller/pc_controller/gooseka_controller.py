@@ -1,18 +1,87 @@
 from inputs import get_gamepad
 from inputs import devices
+import struct
+import serial
+
+import time
+
+STATE_SOF_1 = 0x00
+STATE_SOF_2 = 0x01
+STATE_FRAME = 0x02
+
+SOF_1 = 0xDE
+SOF_2 = 0xAD
+
+TELEMETRY_SIZE_BYTES = 30
+
+serial_port = serial.Serial('/dev/ttyUSB0', 115200)
 
 def main():
-    """Just print out some event infomation when the gamepad is used."""
+    state = STATE_SOF_1
+    ready_to_send = True
+    duty_left = 0
+    duty_right = 0
     while 1:
         events = get_gamepad()
         for event in events:
-            # print(event.ev_type, event.code, event.state)
-            if(event.code == "ABS_X" or event.code == "ABS_RX"):
-                print("STEERING ", event.code, event.state)
-                continue
-            if(event.code == "ABS_Z" or event.code == "ABS_RZ"):
-                print("GAS ", event.code, event.state)
-                continue
+            # print(event.code, event.state)
+            if (event.code == "ABS_Z"):
+                duty_left = event.state
+            if (event.code == "ABS_RZ"):
+                duty_right = event.state
+            # Send serial port message
+        if (ready_to_send):
+            message_to_send = struct.pack('BBBBBB', SOF_1, SOF_2, duty_left, 0, duty_right, 0)
+            serial_port.write(message_to_send)
+            print("Sending message: " + str(message_to_send))
+            ready_to_send = False
+        while (serial_port.in_waiting > 0):
+            received_byte = serial_port.read()
+            print(received_byte.decode("utf-8"), end='')
+            if (state == STATE_SOF_1):
+                if (received_byte == SOF_1):
+                    state = STATE_SOF_2
+                    continue
+            elif (state == STATE_SOF_2):
+                if (received_byte == SOF_2):
+                    buffer_index = 0
+                    buffer = []
+                    continue
+                else:
+                    state = STATE_SOF_1
+                    continue
+            elif (state == STATE_FRAME):
+                if (buffer_index < TELEMETRY_SIZE_BYTES - 1):
+                    buffer[buffer_index] = received_byte
+                    buffer_index += 1
+                    continue
+                else:
+                    buffer[buffer_index] = received_byte
+                    state = STATE_SOF_1
+                    received_list = struct.unpack('LHHHHHBLHHHHHB',buffer)
+                    telemetry = {
+                        "left": {
+                            "timestamp": received_list[0],
+                            "temperature": received_list[1],
+                            "voltage": received_list[2],
+                            "current": received_list[3],
+                            "power": received_list[4],
+                            "erpm": received_list[5],
+                            "duty": received_list[6]
+                        },
+                        "right": {
+                            "timestamp": received_list[7],
+                            "temperature": received_list[8],
+                            "voltage": received_list[9],
+                            "current": received_list[10],
+                            "power": received_list[11],
+                            "erpm": received_list[12],
+                            "duty": received_list[13]
+                        }
+                    }
+                    # Send data to mqtt
+                    ready_to_send = True
+                    continue
 
 if __name__ == "__main__":
     main()

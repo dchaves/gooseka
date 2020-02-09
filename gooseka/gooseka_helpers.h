@@ -5,7 +5,7 @@
 #include "gooseka_structs.h"
 #include "gooseka_defs.h"
 
-#define ENABLE_SERIAL_PRINT false // Enable or disable USB Serial console
+#define ENABLE_SERIAL_PRINT true // Enable or disable USB Serial console
 
 #if ENABLE_SERIAL_PRINT // Serial printing enabled
 #define SERIAL_BEGIN(BAUDS) Serial.begin(BAUDS)

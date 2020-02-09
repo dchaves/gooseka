@@ -24,6 +24,8 @@ typedef struct {
 USB_buffer_t USB_buffer;
 LoRa_buffer_t LoRa_buffer;
 
+ESC_telemetry_t telemetry;
+
 uint8_t state;
 
 void LoRa_receive_task(void* param) {
@@ -50,25 +52,31 @@ void USB_receive_task(void* param) {
         if (Serial.available() > 0) {
             // Receive USB char
             uint8_t incomingByte = Serial.read();
+            Serial.println(incomingByte, HEX);
             switch(state) {
                 case STATE_SOF_1:
+                    Serial.println("SOF_1");
                     if(incomingByte == SOF_1) {
                         state = STATE_SOF_2;
                     }
                 break;
                 case STATE_SOF_2:
+                    Serial.println("SOF_2");
                     if(incomingByte == SOF_2) {
                         state = STATE_FRAME;
                         USB_buffer.index = 0;
                     } else {
-                        sate = STATE_SOF_1;
+                        state = STATE_SOF_1;
                     }
                 break;
                 case STATE_FRAME:
-                    if (USB_buffer.index < sizeof(ESC_control_t)) {
+                    Serial.println("FRAME");
+                    if (USB_buffer.index < sizeof(ESC_control_t) - 1) {
                         USB_buffer.buffer[USB_buffer.index] = incomingByte;
                         USB_buffer.index++;
                     } else {
+                        USB_buffer.buffer[USB_buffer.index] = incomingByte;
+                        Serial.println("LoRa send");
                         state = STATE_SOF_1;
                         LoRa.beginPacket();
                         LoRa.write(USB_buffer.buffer, sizeof(ESC_control_t)); // MAX 255 bytes
