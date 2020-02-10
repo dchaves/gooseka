@@ -26,6 +26,8 @@ uint8_t RIGHT_duty;
 
 ESC_control_t control;
 
+uint32_t last_received_millis;
+
 // CPU #1
 // 0. Read incoming LoRa message
 // 1. Set LEFT & RIGHT ESC duty cycle
@@ -42,6 +44,7 @@ void LoRa_receive_task(void* param) {
                 index++;
             }
             memcpy(&control,LoRa_buffer,sizeof(ESC_control_t));
+            last_received_millis = millis();
             SERIAL_PRINT("Received commands: ");
             SERIAL_PRINT(control.left.duty);
             SERIAL_PRINT(",");
@@ -59,6 +62,10 @@ void LoRa_receive_task(void* param) {
 // 3. If both telemetries are complete, send LoRa message
 void ESC_control_task(void* param) {
     while (1) {
+        if(millis() - last_received_millis > RADIO_IDLE_TIMEOUT) {
+            control.left.duty = 0;
+            control.right.duty = 0;
+        }
         LEFT_duty = control.left.duty;
         RIGHT_duty = control.right.duty;
         
@@ -98,6 +105,7 @@ void setup() {
     RIGHT_telemetry_complete = false;
     LEFT_duty = 0;
     RIGHT_duty = 0;
+    last_received_millis = millis();
     memset(&LEFT_serial_buffer,0,sizeof(serial_buffer_t));
     memset(&RIGHT_serial_buffer,0,sizeof(serial_buffer_t));
     memset(&telemetry,0,sizeof(ESC_telemetry_t));
