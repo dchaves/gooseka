@@ -2,7 +2,6 @@ from inputs import get_gamepad
 from inputs import devices
 import struct
 import serial
-
 import time
 
 STATE_SOF_1 = 0x00
@@ -13,14 +12,20 @@ SOF_1 = 0xDE
 SOF_2 = 0xAD
 
 TELEMETRY_SIZE_BYTES = 30
+RADIO_IDLE_TIMEOUT = 5000
 
 serial_port = serial.Serial('/dev/ttyUSB0', 115200)
+
+def millis():
+    return int(round(time.time() * 1000))
 
 def main():
     state = STATE_SOF_1
     ready_to_send = True
     duty_left = 0
     duty_right = 0
+    last_sent_millis = 0
+
     while 1:
         events = get_gamepad()
         for event in events:
@@ -30,27 +35,33 @@ def main():
             if (event.code == "ABS_RZ"):
                 duty_right = event.state
             # Send serial port message
+        if(millis() - last_sent_millis > RADIO_IDLE_TIMEOUT/2):
+            ready_to_send = True
         if (ready_to_send):
             message_to_send = struct.pack('BBBBBB', SOF_1, SOF_2, duty_left, 0, duty_right, 0)
             serial_port.write(message_to_send)
             print("Sending message: " + str(message_to_send))
+            last_sent_millis = millis()
             ready_to_send = False
         while (serial_port.in_waiting > 0):
             received_byte = serial_port.read()
-            print(received_byte.decode("utf-8"), end='')
+            # print(received_byte.decode("utf-8"), end='')
             if (state == STATE_SOF_1):
+                # print("SOF_1")
                 if (received_byte == SOF_1):
                     state = STATE_SOF_2
                     continue
             elif (state == STATE_SOF_2):
+                # print("SOF_2")
                 if (received_byte == SOF_2):
-                    buffer_index = 0
+                    buffer_index =SOF_1 0
                     buffer = []
                     continue
                 else:
                     state = STATE_SOF_1
                     continue
             elif (state == STATE_FRAME):
+                # print("FRAME")
                 if (buffer_index < TELEMETRY_SIZE_BYTES - 1):
                     buffer[buffer_index] = received_byte
                     buffer_index += 1
@@ -80,6 +91,7 @@ def main():
                         }
                     }
                     # Send data to mqtt
+                    print(telemetry)
                     ready_to_send = True
                     continue
 
