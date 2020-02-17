@@ -60,6 +60,8 @@ int receive_radio_packet(uint8_t* buffer, int size) {
             index++;
         }
     }
+
+    return packetSize;
 }
 
 // CPU #1

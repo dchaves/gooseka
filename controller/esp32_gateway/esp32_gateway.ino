@@ -27,30 +27,61 @@ ESC_telemetry_t telemetry;
 
 uint8_t state;
 
-void LoRa_receive_task(void* param) {
-    uint8_t LoRa_buffer[sizeof(ESC_telemetry_t)];
+void init_radio() {
+    // Set SPI LoRa pins
+    SPI.begin(LORA_SCK, LORA_MISO, LORA_MOSI, LORA_SS);
+
+    // Setup LoRa transceiver module
+    LoRa.setPins(LORA_SS, LORA_RST, LORA_DIO0);
+    if(!LoRa.begin(LORA_BAND)) {
+        while(1);
+    }
+    LoRa.setSyncWord(LORA_SYNCWORD);
+}
+
+void send_via_radio(uint8_t* payload, size_t size) {
+    Serial.println("LoRa send");
+    LoRa.beginPacket();
+    LoRa.write(payload, size); 
+    LoRa.endPacket();
+}
+
+int receive_radio_packet(uint8_t* buffer, int size) {
+    uint8_t index;
+
+    int packetSize = LoRa.parsePacket();
+    if (packetSize == size) {
+        Serial.print("INCOMING LORA ");
+        Serial.println(LoRa.packetRssi());
+        index = 0;
+        while (LoRa.available() && index < size) {
+            buffer[index] = LoRa.read();
+            index++;
+        }
+    }
+
+    return packetSize;
+}
+
+// CPU #1
+void radio_receive_task(void* param) {
+    uint8_t radio_buffer[sizeof(ESC_telemetry_t)];
     uint8_t index;
 
     while(1) {
-        int packetSize = LoRa.parsePacket();
+        int packetSize = receive_radio_packet(radio_buffer, sizeof(ESC_telemetry_t));
         if (packetSize == sizeof(ESC_telemetry_t)) {
-            Serial.print("INCOMING LORA ");
-            Serial.println(LoRa.packetRssi());
-            index = 0;
-            while (LoRa.available() && index < sizeof(ESC_telemetry_t)) {
-                LoRa_buffer[index] = LoRa.read();
-                index++;
-            }
             // Send packet via USB
-            // Serial.write(SOF_1);
-            // Serial.write(SOF_2);
-            // Serial.write(LoRa_buffer, sizeof(ESC_telemetry_t));
+            Serial.write(SOF_1);
+            Serial.write(SOF_2);
+            Serial.write(radio_buffer, sizeof(ESC_telemetry_t));
         }
         vTaskDelay(1); // Without this line watchdog resets the board
     }     
     vTaskDelete(NULL);
 }
 
+// CPU #0
 void USB_receive_task(void* param) {
     while(1){
         if (Serial.available() > 0) {
@@ -80,11 +111,8 @@ void USB_receive_task(void* param) {
                         USB_buffer.index++;
                     } else {
                         USB_buffer.buffer[USB_buffer.index] = incomingByte;
-                        Serial.println("LoRa send");
                         state = STATE_SOF_1;
-                        LoRa.beginPacket();
-                        LoRa.write(USB_buffer.buffer, sizeof(ESC_control_t)); // MAX 255 bytes
-                        LoRa.endPacket();
+                        send_via_radio(USB_buffer.buffer, sizeof(ESC_control_t));
                     }
                 break;
                 default:
@@ -105,20 +133,13 @@ void setup() {
     // USB output
     Serial.begin(SERIAL_BAUDRATE);
 
-    // Set SPI LoRa pins
-    SPI.begin(LORA_SCK, LORA_MISO, LORA_MOSI, LORA_SS);
-
-    // Setup LoRa transceiver module
-    LoRa.setPins(LORA_SS, LORA_RST, LORA_DIO0);
-    if(!LoRa.begin(LORA_BAND)) {
-        while(1);
-    }
-    LoRa.setSyncWord(LORA_SYNCWORD);
+    // Initialize radio interface
+    init_radio();
 
     // Start USB receiver task
     xTaskCreatePinnedToCore(USB_receive_task, "USB_receiver", 10000, NULL, 1, NULL, 0);
     // Start LoRa receiver task
-    xTaskCreatePinnedToCore(LoRa_receive_task, "LoRa_receiver", 10000, NULL, 1, NULL, 1);
+    xTaskCreatePinnedToCore(radio_receive_task, "radio_receiver", 10000, NULL, 1, NULL, 1);
 }
 
 void loop() {
