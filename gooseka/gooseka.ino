@@ -28,22 +28,49 @@ ESC_control_t control;
 
 uint32_t last_received_millis;
 
+void init_radio() {
+    // Set SPI LoRa pins
+    SPI.begin(LORA_SCK, LORA_MISO, LORA_MOSI, LORA_SS);
+
+    // Setup LoRa transceiver module
+    LoRa.setPins(LORA_SS, LORA_RST, LORA_DIO0);
+    if(!LoRa.begin(LORA_BAND)) {
+        SERIAL_PRINTLN("LoRa init error.");
+        while(1);
+    }
+    LoRa.setSyncWord(LORA_SYNCWORD);
+}
+
+void send_via_radio(uint8_t* payload, size_t size) {
+    LoRa.beginPacket();
+    LoRa.write(payload, size); 
+    LoRa.endPacket();
+}
+
+int receive_radio_packet(uint8_t buffer, int size) {
+    uint8_t index;
+
+    int packetSize = LoRa.parsePacket();
+    if (packetSize == size) {
+        index = 0;
+        while (LoRa.available()) {
+            buffer[index] = LoRa.read();
+            index++;
+        }
+    }
+}
+
 // CPU #1
 // 0. Read incoming LoRa message
 // 1. Set LEFT & RIGHT ESC duty cycle
-void LoRa_receive_task(void* param) {
-    uint8_t LoRa_buffer[sizeof(ESC_control_t)];
+void radio_receive_task(void* param) {
+    uint8_t radio_buffer[sizeof(ESC_control_t)];
     uint8_t index;
 
     while(1) {
-        int packetSize = LoRa.parsePacket();
+        int packetSize = receive_radio_packet(radio_buffer, sizeof(ESC_control_t));
         if (packetSize == sizeof(ESC_control_t)) {
-            index = 0;
-            while (LoRa.available()) {
-                LoRa_buffer[index] = LoRa.read();
-                index++;
-            }
-            memcpy(&control,LoRa_buffer,sizeof(ESC_control_t));
+            memcpy(&control, radio_buffer, sizeof(ESC_control_t));
             last_received_millis = millis();
             SERIAL_PRINT("Received commands: ");
             SERIAL_PRINT(control.left.duty);
@@ -90,9 +117,7 @@ void ESC_control_task(void* param) {
             LEFT_telemetry_complete = false;
             RIGHT_telemetry_complete = false;
             PRINT_TELEMETRY(&Serial, &telemetry);
-            LoRa.beginPacket();
-            LoRa.write((uint8_t *)&telemetry, sizeof(ESC_telemetry_t)); 
-            LoRa.endPacket();
+            send_via_radio((uint8_t *)&telemetry, sizeof(ESC_telemetry_t)); 
         }
         vTaskDelay(1); // Without this line watchdog resets the board
     }
@@ -129,16 +154,8 @@ void setup() {
     LEFT_ESC_servo.attach(LEFT_PWM_PIN, PWM_MIN, PWM_MAX);
     RIGHT_ESC_servo.attach(RIGHT_PWM_PIN, PWM_MIN, PWM_MAX);
 
-    // Set SPI LoRa pins
-    SPI.begin(LORA_SCK, LORA_MISO, LORA_MOSI, LORA_SS);
-
-    // Setup LoRa transceiver module
-    LoRa.setPins(LORA_SS, LORA_RST, LORA_DIO0);
-    if(!LoRa.begin(LORA_BAND)) {
-        SERIAL_PRINTLN("LoRa init error.");
-        while(1);
-    }
-    LoRa.setSyncWord(LORA_SYNCWORD);
+    // Init radio interface
+    init_radio();
 
     // Start ESC control task
     xTaskCreatePinnedToCore(ESC_control_task, "ESC_controller", 10000, NULL, 1, NULL, 0);
