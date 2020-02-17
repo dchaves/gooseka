@@ -22,25 +22,29 @@ typedef struct {
 } LoRa_buffer_t;
 
 USB_buffer_t USB_buffer;
-LoRa_buffer_t LoRa_buffer;
 
 ESC_telemetry_t telemetry;
 
 uint8_t state;
 
 void LoRa_receive_task(void* param) {
+    uint8_t LoRa_buffer[sizeof(ESC_telemetry_t)];
+    uint8_t index;
+
     while(1) {
         int packetSize = LoRa.parsePacket();
-        if (packetSize) {
-            LoRa_buffer.index = 0;
-            while (LoRa.available()) {
-                LoRa_buffer.buffer[LoRa_buffer.index] = LoRa.read();
-                LoRa_buffer.index++;
+        if (packetSize == sizeof(ESC_telemetry_t)) {
+            Serial.print("INCOMING LORA ");
+            Serial.println(LoRa.packetRssi());
+            index = 0;
+            while (LoRa.available() && index < sizeof(ESC_telemetry_t)) {
+                LoRa_buffer[index] = LoRa.read();
+                index++;
             }
             // Send packet via USB
-            Serial.write(SOF_1);
-            Serial.write(SOF_2);
-            Serial.write(LoRa_buffer.buffer, sizeof(ESC_telemetry_t));
+            // Serial.write(SOF_1);
+            // Serial.write(SOF_2);
+            // Serial.write(LoRa_buffer, sizeof(ESC_telemetry_t));
         }
         vTaskDelay(1); // Without this line watchdog resets the board
     }     
@@ -97,7 +101,6 @@ void setup() {
     memset(&telemetry,0,sizeof(ESC_telemetry_t));
     state = STATE_SOF_1;
     memset(&USB_buffer, 0, sizeof(USB_buffer_t));
-    memset(&LoRa_buffer, 0, sizeof(LoRa_buffer_t));
 
     // USB output
     Serial.begin(SERIAL_BAUDRATE);

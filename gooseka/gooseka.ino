@@ -27,6 +27,8 @@ uint8_t RIGHT_duty;
 ESC_control_t control;
 
 uint32_t last_received_millis;
+uint32_t last_sent_millis;
+
 
 void init_radio() {
     // Set SPI LoRa pins
@@ -53,7 +55,7 @@ int receive_radio_packet(uint8_t buffer, int size) {
     int packetSize = LoRa.parsePacket();
     if (packetSize == size) {
         index = 0;
-        while (LoRa.available()) {
+        while (LoRa.available() && index < size) {
             buffer[index] = LoRa.read();
             index++;
         }
@@ -76,6 +78,8 @@ void radio_receive_task(void* param) {
             SERIAL_PRINT(control.left.duty);
             SERIAL_PRINT(",");
             SERIAL_PRINTLN(control.right.duty);
+            SERIAL_PRINT(",");
+            SERIAL_PRINTLN(LoRa.packetRssi());
         }
         vTaskDelay(1); // Without this line watchdog resets the board
     }
@@ -90,6 +94,8 @@ void radio_receive_task(void* param) {
 void ESC_control_task(void* param) {
     while (1) {
         if(millis() - last_received_millis > RADIO_IDLE_TIMEOUT) {
+            SERIAL_PRINTLN("OUT OF RANGE");
+            last_received_millis = millis();
             control.left.duty = 0;
             control.right.duty = 0;
         }
@@ -100,24 +106,38 @@ void ESC_control_task(void* param) {
         RIGHT_ESC_servo.write(map(RIGHT_duty,0,255,0,180));
         
         if(LEFT_ESC_serial.available()) {
+            // SERIAL_PRINTLN("LEFT AVAILABLE");
             if(read_telemetry(&LEFT_ESC_serial, &LEFT_serial_buffer, &(telemetry.left))) {
                 telemetry.left.duty = LEFT_duty;
                 LEFT_telemetry_complete = true;
+                // SERIAL_PRINTLN("LEFT TELEMETRY");
             }
         }
 
         if(RIGHT_ESC_serial.available()) {
+            // SERIAL_PRINTLN("RIGHT AVAILABLE");
             if(read_telemetry(&RIGHT_ESC_serial, &RIGHT_serial_buffer, &(telemetry.right))) {
                 telemetry.right.duty = RIGHT_duty;
                 RIGHT_telemetry_complete = true;
+                // SERIAL_PRINTLN("RIGHT TELEMETRY");
             }
         }
 
         if(LEFT_telemetry_complete && RIGHT_telemetry_complete) {
             LEFT_telemetry_complete = false;
             RIGHT_telemetry_complete = false;
+<<<<<<< HEAD
             PRINT_TELEMETRY(&Serial, &telemetry);
             send_via_radio((uint8_t *)&telemetry, sizeof(ESC_telemetry_t)); 
+=======
+            if(millis() - last_sent_millis > LORA_SLOWDOWN) {
+                PRINT_TELEMETRY(&Serial, &telemetry);
+                last_sent_millis = millis();
+                LoRa.beginPacket();
+                LoRa.write((uint8_t *)&telemetry, sizeof(ESC_telemetry_t)); 
+                LoRa.endPacket();
+            }
+>>>>>>> d9af2a36e29cdfe0ed30ce3009e267ef72dadf72
         }
         vTaskDelay(1); // Without this line watchdog resets the board
     }
@@ -131,6 +151,7 @@ void setup() {
     LEFT_duty = 0;
     RIGHT_duty = 0;
     last_received_millis = millis();
+    last_sent_millis = millis();
     memset(&LEFT_serial_buffer,0,sizeof(serial_buffer_t));
     memset(&RIGHT_serial_buffer,0,sizeof(serial_buffer_t));
     memset(&telemetry,0,sizeof(ESC_telemetry_t));
