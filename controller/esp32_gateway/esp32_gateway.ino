@@ -11,22 +11,6 @@
 #define SOF_1 0xDE
 #define SOF_2 0xAD
 
-typedef struct {
-    uint8_t index;
-    uint8_t buffer[sizeof(ESC_control_t)];
-} USB_buffer_t;
-
-typedef struct {
-    uint8_t index;
-    uint8_t buffer[sizeof(ESC_telemetry_t)];
-} LoRa_buffer_t;
-
-USB_buffer_t USB_buffer;
-
-ESC_telemetry_t telemetry;
-
-uint8_t state;
-
 void init_radio() {
     // Set SPI LoRa pins
     SPI.begin(LORA_SCK, LORA_MISO, LORA_MOSI, LORA_SS);
@@ -83,6 +67,11 @@ void radio_receive_task(void* param) {
 
 // CPU #0
 void USB_receive_task(void* param) {
+    uint8_t state = STATE_SOF_1;
+    uint8_t index;
+    uint8_t buffer[sizeof(ESC_control_t)];
+    memset(&buffer, 0, sizeof(ESC_control_t));
+
     while(1){
         if (Serial.available() > 0) {
             // Receive USB char
@@ -99,20 +88,20 @@ void USB_receive_task(void* param) {
                     Serial.println("SOF_2");
                     if(incomingByte == SOF_2) {
                         state = STATE_FRAME;
-                        USB_buffer.index = 0;
+                        index = 0;
                     } else {
                         state = STATE_SOF_1;
                     }
                 break;
                 case STATE_FRAME:
                     Serial.println("FRAME");
-                    if (USB_buffer.index < sizeof(ESC_control_t) - 1) {
-                        USB_buffer.buffer[USB_buffer.index] = incomingByte;
-                        USB_buffer.index++;
+                    if (index < sizeof(ESC_control_t) - 1) {
+                        buffer[index] = incomingByte;
+                        index++;
                     } else {
-                        USB_buffer.buffer[USB_buffer.index] = incomingByte;
+                        buffer[index] = incomingByte;
                         state = STATE_SOF_1;
-                        send_via_radio(USB_buffer.buffer, sizeof(ESC_control_t));
+                        send_via_radio(buffer, sizeof(ESC_control_t));
                     }
                 break;
                 default:
@@ -126,9 +115,6 @@ void USB_receive_task(void* param) {
 
 void setup() {
     // Initialize structs and arrays
-    memset(&telemetry,0,sizeof(ESC_telemetry_t));
-    state = STATE_SOF_1;
-    memset(&USB_buffer, 0, sizeof(USB_buffer_t));
 
     // USB output
     Serial.begin(SERIAL_BAUDRATE);
