@@ -8,6 +8,7 @@
 #include "gooseka_defs.h"
 
 QueueHandle_t control_queue;
+QueueHandle_t radio_queue;
 
 void init_radio() {
     // Set SPI LoRa pins
@@ -53,8 +54,15 @@ void radio_receive_task(void* param) {
     uint32_t last_received_millis;
     Servo LEFT_ESC_servo;
     Servo RIGHT_ESC_servo;
+    uint32_t last_sent_millis;
+    ESC_telemetry_t telemetry;
 
+    memset(&telemetry,0,sizeof(ESC_telemetry_t));
     memset(&control,0,sizeof(ESC_control_t));
+    last_sent_millis = millis();
+
+    // Init radio interface
+    init_radio();
     
     // Configure servos
     LEFT_ESC_servo.attach(LEFT_PWM_PIN, PWM_MIN, PWM_MAX);
@@ -83,6 +91,15 @@ void radio_receive_task(void* param) {
         LEFT_ESC_servo.write(map(control.left.duty,0,255,0,180));
         RIGHT_ESC_servo.write(map(control.right.duty,0,255,0,180));
 
+        // Send enqueued msgs
+        if(millis() - last_sent_millis > LORA_SLOWDOWN) {
+            last_sent_millis = millis();
+            if(uxQueueMessagesWaiting(radio_queue) > 0) {
+                xQueueReceive(radio_queue, &telemetry, 0);
+                send_via_radio((uint8_t *)&telemetry, sizeof(ESC_telemetry_t));
+            }
+        }
+
         vTaskDelay(1); // Without this line watchdog resets the board
     }
     vTaskDelete(NULL);
@@ -95,7 +112,6 @@ void radio_receive_task(void* param) {
 // 3. If both telemetries are complete, send message
 void ESC_control_task(void* param) {
     ESC_control_t control;
-    uint32_t last_sent_millis;
     serial_buffer_t LEFT_serial_buffer;
     serial_buffer_t RIGHT_serial_buffer;
     ESC_telemetry_t telemetry;
@@ -111,7 +127,6 @@ void ESC_control_task(void* param) {
     memset(&RIGHT_serial_buffer,0,sizeof(serial_buffer_t));
     memset(&telemetry,0,sizeof(ESC_telemetry_t));
     memset(&control,0,sizeof(ESC_control_t));
-    last_sent_millis = millis();
 
     // Telemetry serial lines
     LEFT_ESC_serial.begin(115200, SERIAL_8N1, LEFT_TELEMETRY_READ_PIN, LEFT_TELEMETRY_UNUSED_PIN);
@@ -150,12 +165,9 @@ void ESC_control_task(void* param) {
 
         if(LEFT_telemetry_complete && RIGHT_telemetry_complete) {
             LEFT_telemetry_complete = false;
-            RIGHT_telemetry_complete = false;
-            if(millis() - last_sent_millis > LORA_SLOWDOWN) {
-                PRINT_TELEMETRY(&Serial, &telemetry);
-                last_sent_millis = millis();
-                send_via_radio((uint8_t *)&telemetry, sizeof(ESC_telemetry_t)); 
-            }
+            RIGHT_telemetry_complete = false;    
+            PRINT_TELEMETRY(&Serial, &telemetry);
+            xQueueSend(radio_queue, &telemetry, 0);
         }
         vTaskDelay(1); // Without this line watchdog resets the board
     }
@@ -166,11 +178,11 @@ void setup() {
     // Console output
     SERIAL_BEGIN(115200);
 
-    // Init radio interface
-    init_radio();
-
     // Init control msg queue
-    xQueueCreate(10, sizeof(ESC_control_t));
+    control_queue = xQueueCreate(10, sizeof(ESC_control_t));
+
+    // Init telemetry msg queue
+    radio_queue = xQueueCreate(10, sizeof(ESC_telemetry_t));
 
     // Start ESC control task
     xTaskCreatePinnedToCore(ESC_control_task, "ESC_controller", 10000, NULL, 1, NULL, 0);

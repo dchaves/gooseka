@@ -11,6 +11,8 @@
 #define SOF_1 0xDE
 #define SOF_2 0xAD
 
+QueueHandle_t radio_queue;
+
 void init_radio() {
     // Set SPI LoRa pins
     SPI.begin(LORA_SCK, LORA_MISO, LORA_MOSI, LORA_SS);
@@ -51,6 +53,9 @@ int receive_radio_packet(uint8_t* buffer, int size) {
 void radio_receive_task(void* param) {
     uint8_t radio_buffer[sizeof(ESC_telemetry_t)];
     uint8_t index;
+    ESC_control_t control;
+
+    memset(&control,0,sizeof(ESC_control_t));
 
     while(1) {
         int packetSize = receive_radio_packet(radio_buffer, sizeof(ESC_telemetry_t));
@@ -60,6 +65,13 @@ void radio_receive_task(void* param) {
             Serial.write(SOF_2);
             Serial.write(radio_buffer, sizeof(ESC_telemetry_t));
         }
+
+        // Send enqueued radio msgs
+        if(uxQueueMessagesWaiting(radio_queue) > 0) {
+            xQueueReceive(radio_queue, &control, 0);
+            send_via_radio((uint8_t *)&control, sizeof(ESC_control_t));
+        }
+
         vTaskDelay(1); // Without this line watchdog resets the board
     }     
     vTaskDelete(NULL);
@@ -101,7 +113,7 @@ void USB_receive_task(void* param) {
                     } else {
                         buffer[index] = incomingByte;
                         state = STATE_SOF_1;
-                        send_via_radio(buffer, sizeof(ESC_control_t));
+                        xQueueSend(radio_queue, buffer, 0);
                     }
                 break;
                 default:
@@ -118,6 +130,9 @@ void setup() {
 
     // USB output
     Serial.begin(SERIAL_BAUDRATE);
+
+    // Init control msg queue
+    radio_queue = xQueueCreate(10, sizeof(ESC_control_t));
 
     // Initialize radio interface
     init_radio();
