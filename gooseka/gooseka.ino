@@ -49,7 +49,7 @@ void send_via_radio(uint8_t* payload, size_t size) {
     LoRa.endPacket();
 }
 
-int receive_radio_packet(uint8_t buffer, int size) {
+int receive_radio_packet(uint8_t* buffer, int size) {
     uint8_t index;
 
     int packetSize = LoRa.parsePacket();
@@ -126,18 +126,11 @@ void ESC_control_task(void* param) {
         if(LEFT_telemetry_complete && RIGHT_telemetry_complete) {
             LEFT_telemetry_complete = false;
             RIGHT_telemetry_complete = false;
-<<<<<<< HEAD
-            PRINT_TELEMETRY(&Serial, &telemetry);
-            send_via_radio((uint8_t *)&telemetry, sizeof(ESC_telemetry_t)); 
-=======
             if(millis() - last_sent_millis > LORA_SLOWDOWN) {
                 PRINT_TELEMETRY(&Serial, &telemetry);
                 last_sent_millis = millis();
-                LoRa.beginPacket();
-                LoRa.write((uint8_t *)&telemetry, sizeof(ESC_telemetry_t)); 
-                LoRa.endPacket();
+                send_via_radio((uint8_t *)&telemetry, sizeof(ESC_telemetry_t)); 
             }
->>>>>>> d9af2a36e29cdfe0ed30ce3009e267ef72dadf72
         }
         vTaskDelay(1); // Without this line watchdog resets the board
     }
@@ -181,7 +174,7 @@ void setup() {
     // Start ESC control task
     xTaskCreatePinnedToCore(ESC_control_task, "ESC_controller", 10000, NULL, 1, NULL, 0);
     // Start LoRa receiver task
-    xTaskCreatePinnedToCore(LoRa_receive_task, "LoRa_receiver", 10000, NULL, 1, NULL, 1);
+    xTaskCreatePinnedToCore(radio_receive_task, "radio_receiver", 10000, NULL, 1, NULL, 1);
 }
 
 void loop() {
