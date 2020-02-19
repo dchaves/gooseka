@@ -5,19 +5,19 @@
 #include "gooseka_structs.h"
 #include "gooseka_defs.h"
 
-#define ENABLE_SERIAL_PRINT true // Enable or disable USB Serial console
+#define ENABLE_DEBUG true // Enable or disable USB Serial console
 
-#if ENABLE_SERIAL_PRINT // Serial printing enabled
-#define SERIAL_BEGIN(BAUDS) Serial.begin(BAUDS)
-#define SERIAL_PRINTLN(X) Serial.println(X)
-#define SERIAL_PRINT(X) Serial.print(X)
-#define PRINT_TELEMETRY(S,T) print_telemetry(S,T)
+#if ENABLE_DEBUG // Serial printing enabled
+#define DEBUG_BEGIN(BAUDS) Serial.begin(BAUDS)
+#define DEBUG_PRINTLN(...) Serial.println(__VA_ARGS__)
+#define DEBUG_PRINT(...) Serial.print(__VA_ARGS__)
+#define DEBUG_TELEMETRY(S,T) print_telemetry(S,T)
 #else // Serial printing disabled
-#define SERIAL_BEGIN(BAUDS) 
-#define SERIAL_PRINTLN(X) 
-#define SERIAL_PRINT(X) 
-#define PRINT_TELEMETRY(S,T)
-#endif /* ENABLE_SERIAL_PRINT */
+#define DEBUG_BEGIN(BAUDS) 
+#define DEBUG_PRINTLN(...) 
+#define DEBUG_PRINT(...) 
+#define DEBUG_TELEMETRY(S,T)
+#endif /* ENABLE_DEBUG */
 
 typedef struct {
     uint8_t received_bytes;

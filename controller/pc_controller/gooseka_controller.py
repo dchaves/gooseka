@@ -3,6 +3,7 @@ from inputs import devices
 import struct
 import serial
 import time
+import json 
 
 STATE_SOF_1 = 0x00
 STATE_SOF_2 = 0x01
@@ -38,14 +39,14 @@ def main():
         if(millis() - last_sent_millis > RADIO_IDLE_TIMEOUT/2):
             ready_to_send = True
         if (ready_to_send):
-            message_to_send = struct.pack('BBBBBB', SOF_1, SOF_2, duty_left, 0, duty_right, 0)
+            message_to_send = struct.pack('<BBBBBB', SOF_1, SOF_2, duty_left, 0, duty_right, 0)
             serial_port.write(message_to_send)
             print("Sending message: " + str(message_to_send))
             last_sent_millis = millis()
             ready_to_send = False
         while (serial_port.in_waiting > 0):
-            received_byte = serial_port.read()
-            # print(received_byte.decode("utf-8"), end='')
+            received_byte = struct.unpack('B',serial_port.read())[0]
+            # print(received_byte)
             if (state == STATE_SOF_1):
                 # print("SOF_1")
                 if (received_byte == SOF_1):
@@ -54,8 +55,9 @@ def main():
             elif (state == STATE_SOF_2):
                 # print("SOF_2")
                 if (received_byte == SOF_2):
-                    buffer_index =SOF_1 0
-                    buffer = []
+                    buffer_index = 0
+                    buffer = bytearray(TELEMETRY_SIZE_BYTES)
+                    state = STATE_FRAME
                     continue
                 else:
                     state = STATE_SOF_1
@@ -69,7 +71,8 @@ def main():
                 else:
                     buffer[buffer_index] = received_byte
                     state = STATE_SOF_1
-                    received_list = struct.unpack('LHHHHHBLHHHHHB',buffer)
+                    # print ('SIZE ' + str(struct.calcsize('!LHHHHHBLHHHHHB')))
+                    received_list = struct.unpack('<LHHHHHBLHHHHHB',buffer)
                     telemetry = {
                         "left": {
                             "timestamp": received_list[0],
@@ -91,7 +94,7 @@ def main():
                         }
                     }
                     # Send data to mqtt
-                    print(telemetry)
+                    print("Received: " + json.dumps(telemetry, indent = 4))
                     ready_to_send = True
                     continue
 

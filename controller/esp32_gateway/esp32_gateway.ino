@@ -3,6 +3,7 @@
 
 #include "esp32_controller_defs.h"
 #include "gooseka_structs.h"
+#include "esp32_controller_helpers.h"
 
 #define STATE_SOF_1 0x00
 #define STATE_SOF_2 0x01
@@ -11,7 +12,7 @@
 #define SOF_1 0xDE
 #define SOF_2 0xAD
 
-QueueHandle_t radio_queue;
+QueueHandle_t telemetry_queue;
 
 void init_radio() {
     // Set SPI LoRa pins
@@ -20,16 +21,18 @@ void init_radio() {
     // Setup LoRa transceiver module
     LoRa.setPins(LORA_SS, LORA_RST, LORA_DIO0);
     if(!LoRa.begin(LORA_BAND)) {
+        DEBUG_PRINTLN("LoRa initialization error");
         while(1);
     }
     LoRa.setSyncWord(LORA_SYNCWORD);
 }
 
 void send_via_radio(uint8_t* payload, size_t size) {
-    Serial.println("LoRa send");
     LoRa.beginPacket();
     LoRa.write(payload, size); 
-    LoRa.endPacket();
+    if(LoRa.endPacket() == 1) {
+        digitalWrite(LED_BUILTIN, !digitalRead(LED_BUILTIN));
+    }
 }
 
 int receive_radio_packet(uint8_t* buffer, int size) {
@@ -37,8 +40,8 @@ int receive_radio_packet(uint8_t* buffer, int size) {
 
     int packetSize = LoRa.parsePacket();
     if (packetSize == size) {
-        Serial.print("INCOMING LORA ");
-        Serial.println(LoRa.packetRssi());
+        // DEBUG_PRINT("INCOMING LORA ");
+        // DEBUG_PRINTLN(LoRa.packetRssi());
         index = 0;
         while (LoRa.available() && index < size) {
             buffer[index] = LoRa.read();
@@ -47,6 +50,10 @@ int receive_radio_packet(uint8_t* buffer, int size) {
     }
 
     return packetSize;
+}
+
+int16_t radio_rssi() {
+    return LoRa.packetRssi();
 }
 
 // CPU #1
@@ -64,11 +71,12 @@ void radio_receive_task(void* param) {
             Serial.write(SOF_1);
             Serial.write(SOF_2);
             Serial.write(radio_buffer, sizeof(ESC_telemetry_t));
+            // Serial.write(radio_rssi());
         }
 
         // Send enqueued radio msgs
-        if(uxQueueMessagesWaiting(radio_queue) > 0) {
-            xQueueReceive(radio_queue, &control, 0);
+        if(uxQueueMessagesWaiting(telemetry_queue) > 0) {
+            xQueueReceive(telemetry_queue, &control, 0);
             send_via_radio((uint8_t *)&control, sizeof(ESC_control_t));
         }
 
@@ -88,16 +96,16 @@ void USB_receive_task(void* param) {
         if (Serial.available() > 0) {
             // Receive USB char
             uint8_t incomingByte = Serial.read();
-            Serial.println(incomingByte, HEX);
+            // DEBUG_PRINTLN(incomingByte, HEX);
             switch(state) {
                 case STATE_SOF_1:
-                    Serial.println("SOF_1");
+                    // DEBUG_PRINTLN("SOF_1");
                     if(incomingByte == SOF_1) {
                         state = STATE_SOF_2;
                     }
                 break;
                 case STATE_SOF_2:
-                    Serial.println("SOF_2");
+                    // DEBUG_PRINTLN("SOF_2");
                     if(incomingByte == SOF_2) {
                         state = STATE_FRAME;
                         index = 0;
@@ -106,14 +114,14 @@ void USB_receive_task(void* param) {
                     }
                 break;
                 case STATE_FRAME:
-                    Serial.println("FRAME");
+                    // DEBUG_PRINTLN("FRAME");
                     if (index < sizeof(ESC_control_t) - 1) {
                         buffer[index] = incomingByte;
                         index++;
                     } else {
                         buffer[index] = incomingByte;
                         state = STATE_SOF_1;
-                        xQueueSend(radio_queue, buffer, 0);
+                        xQueueSend(telemetry_queue, buffer, 0);
                     }
                 break;
                 default:
@@ -127,12 +135,13 @@ void USB_receive_task(void* param) {
 
 void setup() {
     // Initialize structs and arrays
+    pinMode(LED_BUILTIN, OUTPUT);
 
     // USB output
     Serial.begin(SERIAL_BAUDRATE);
 
     // Init control msg queue
-    radio_queue = xQueueCreate(10, sizeof(ESC_control_t));
+    telemetry_queue = xQueueCreate(QUEUE_SIZE, sizeof(ESC_control_t));
 
     // Initialize radio interface
     init_radio();

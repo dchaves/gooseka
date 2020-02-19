@@ -42,6 +42,9 @@
 
 // LORA SENDER SLOW DOWN 
 // (do not send more than one msg every LORA_SLOWDOWN ms)
-#define LORA_SLOWDOWN 1000L
+#define LORA_SLOWDOWN 100L
+
+// INTER CPU MESG QUEUE SIZE
+#define QUEUE_SIZE 1
 
 #endif /* GOOSEKA_DEFS_H */

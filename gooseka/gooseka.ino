@@ -8,7 +8,7 @@
 #include "gooseka_defs.h"
 
 QueueHandle_t control_queue;
-QueueHandle_t radio_queue;
+QueueHandle_t telemetry_queue;
 
 void init_radio() {
     // Set SPI LoRa pins
@@ -17,7 +17,7 @@ void init_radio() {
     // Setup LoRa transceiver module
     LoRa.setPins(LORA_SS, LORA_RST, LORA_DIO0);
     if(!LoRa.begin(LORA_BAND)) {
-        SERIAL_PRINTLN("LoRa init error.");
+        DEBUG_PRINTLN("LoRa init error.");
         while(1);
     }
     LoRa.setSyncWord(LORA_SYNCWORD);
@@ -30,11 +30,10 @@ void send_via_radio(uint8_t* payload, size_t size) {
 }
 
 int receive_radio_packet(uint8_t* buffer, int size) {
-    uint8_t index;
+    uint8_t index = 0;
 
     int packetSize = LoRa.parsePacket();
     if (packetSize == size) {
-        index = 0;
         while (LoRa.available() && index < size) {
             buffer[index] = LoRa.read();
             index++;
@@ -70,33 +69,36 @@ void radio_receive_task(void* param) {
 
     while(1) {
         int packetSize = receive_radio_packet(radio_buffer, sizeof(ESC_control_t));
+        // DEBUG_PRINTLN(packetSize);
         if (packetSize == sizeof(ESC_control_t)) {
             memcpy(&control, radio_buffer, sizeof(ESC_control_t));
             last_received_millis = millis();
             xQueueSend(control_queue, &control, 0);
-            SERIAL_PRINT("Received commands: ");
-            SERIAL_PRINT(control.left.duty);
-            SERIAL_PRINT(",");
-            SERIAL_PRINTLN(control.right.duty);
-            SERIAL_PRINT(",");
-            SERIAL_PRINTLN(LoRa.packetRssi());
+            DEBUG_PRINT("Received commands: ");
+            DEBUG_PRINT(control.left.duty);
+            DEBUG_PRINT(",");
+            DEBUG_PRINT(control.right.duty);
+            DEBUG_PRINT(",");
+            DEBUG_PRINTLN(LoRa.packetRssi());
         }
 
         if(millis() - last_received_millis > RADIO_IDLE_TIMEOUT) {
-            SERIAL_PRINTLN("OUT OF RANGE");
+            DEBUG_PRINTLN("OUT OF RANGE");
             last_received_millis = millis();
             control.left.duty = 0;
             control.right.duty = 0;
         }
+        
         LEFT_ESC_servo.write(map(control.left.duty,0,255,0,180));
         RIGHT_ESC_servo.write(map(control.right.duty,0,255,0,180));
 
         // Send enqueued msgs
         if(millis() - last_sent_millis > LORA_SLOWDOWN) {
             last_sent_millis = millis();
-            if(uxQueueMessagesWaiting(radio_queue) > 0) {
-                xQueueReceive(radio_queue, &telemetry, 0);
+            if(uxQueueMessagesWaiting(telemetry_queue) > 0) {
+                xQueueReceive(telemetry_queue, &telemetry, 0);
                 send_via_radio((uint8_t *)&telemetry, sizeof(ESC_telemetry_t));
+                // DEBUG_TELEMETRY(&Serial, &telemetry);
             }
         }
 
@@ -146,28 +148,28 @@ void ESC_control_task(void* param) {
         }
         
         if(LEFT_ESC_serial.available()) {
-            // SERIAL_PRINTLN("LEFT AVAILABLE");
+            // DEBUG_PRINTLN("LEFT AVAILABLE");
             if(read_telemetry(&LEFT_ESC_serial, &LEFT_serial_buffer, &(telemetry.left))) {
                 telemetry.left.duty = control.left.duty;
                 LEFT_telemetry_complete = true;
-                // SERIAL_PRINTLN("LEFT TELEMETRY");
+                // DEBUG_PRINTLN("LEFT TELEMETRY");
             }
         }
 
         if(RIGHT_ESC_serial.available()) {
-            // SERIAL_PRINTLN("RIGHT AVAILABLE");
+            // DEBUG_PRINTLN("RIGHT AVAILABLE");
             if(read_telemetry(&RIGHT_ESC_serial, &RIGHT_serial_buffer, &(telemetry.right))) {
                 telemetry.right.duty = control.right.duty;
                 RIGHT_telemetry_complete = true;
-                // SERIAL_PRINTLN("RIGHT TELEMETRY");
+                // DEBUG_PRINTLN("RIGHT TELEMETRY");
             }
         }
 
         if(LEFT_telemetry_complete && RIGHT_telemetry_complete) {
             LEFT_telemetry_complete = false;
             RIGHT_telemetry_complete = false;    
-            PRINT_TELEMETRY(&Serial, &telemetry);
-            xQueueSend(radio_queue, &telemetry, 0);
+            // DEBUG_TELEMETRY(&Serial, &telemetry);
+            xQueueSend(telemetry_queue, &telemetry, 0);
         }
         vTaskDelay(1); // Without this line watchdog resets the board
     }
@@ -176,13 +178,13 @@ void ESC_control_task(void* param) {
 
 void setup() {
     // Console output
-    SERIAL_BEGIN(115200);
+    DEBUG_BEGIN(115200);
 
     // Init control msg queue
-    control_queue = xQueueCreate(10, sizeof(ESC_control_t));
+    control_queue = xQueueCreate(QUEUE_SIZE, sizeof(ESC_control_t));
 
     // Init telemetry msg queue
-    radio_queue = xQueueCreate(10, sizeof(ESC_telemetry_t));
+    telemetry_queue = xQueueCreate(QUEUE_SIZE, sizeof(ESC_telemetry_t));
 
     // Start ESC control task
     xTaskCreatePinnedToCore(ESC_control_task, "ESC_controller", 10000, NULL, 1, NULL, 0);
