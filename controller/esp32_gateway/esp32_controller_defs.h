@@ -14,6 +14,11 @@
 // 866E6 for Europe
 // 915E6 for North America
 #define LORA_BAND 866E6
+#define LORA_SPREADING_FACTOR 7
+#define LORA_BANDWIDTH 250e3
+#define LORA_CODING_RATE 5
+#define LORA_PREAMBLE_LENGTH 8
+#define LORA_TX_POWER 20
 
 // LORA SYNCWORD
 #define LORA_SYNCWORD 0xCA
@@ -23,5 +28,9 @@
 
 // INTER CPU MESG QUEUE SIZE
 #define QUEUE_SIZE 1
+
+// LORA SENDER SLOW DOWN 
+// (do not send more than one msg every LORA_SLOWDOWN ms)
+#define LORA_SLOWDOWN 100L
 
 #endif /* ESP32_CONTROLLER_DEFS_H */

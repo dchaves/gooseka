@@ -20,13 +20,19 @@ void init_radio() {
         DEBUG_PRINTLN("LoRa init error.");
         while(1);
     }
+    LoRa.setCodingRate4(LORA_CODING_RATE);
+    LoRa.setSpreadingFactor(LORA_SPREADING_FACTOR);
+    LoRa.setSignalBandwidth(LORA_BANDWIDTH);
+    LoRa.setTxPower(LORA_TX_POWER);
     LoRa.setSyncWord(LORA_SYNCWORD);
 }
 
 void send_via_radio(uint8_t* payload, size_t size) {
     LoRa.beginPacket();
     LoRa.write(payload, size); 
-    LoRa.endPacket();
+    if(LoRa.endPacket() == 1) {
+        digitalWrite(LED_BUILTIN, !digitalRead(LED_BUILTIN));
+    }
 }
 
 int receive_radio_packet(uint8_t* buffer, int size) {
@@ -59,9 +65,6 @@ void radio_receive_task(void* param) {
     memset(&telemetry,0,sizeof(ESC_telemetry_t));
     memset(&control,0,sizeof(ESC_control_t));
     last_sent_millis = millis();
-
-    // Init radio interface
-    init_radio();
     
     // Configure servos
     LEFT_ESC_servo.attach(LEFT_PWM_PIN, PWM_MIN, PWM_MAX);
@@ -74,15 +77,14 @@ void radio_receive_task(void* param) {
             memcpy(&control, radio_buffer, sizeof(ESC_control_t));
             last_received_millis = millis();
             xQueueSend(control_queue, &control, 0);
+            
             DEBUG_PRINT("Received commands: ");
             DEBUG_PRINT(control.left.duty);
             DEBUG_PRINT(",");
             DEBUG_PRINT(control.right.duty);
             DEBUG_PRINT(",");
             DEBUG_PRINTLN(LoRa.packetRssi());
-        }
-
-        if(millis() - last_received_millis > RADIO_IDLE_TIMEOUT) {
+        } else if(millis() - last_received_millis > RADIO_IDLE_TIMEOUT) {
             DEBUG_PRINTLN("OUT OF RANGE");
             last_received_millis = millis();
             control.left.duty = 0;
@@ -92,16 +94,14 @@ void radio_receive_task(void* param) {
         LEFT_ESC_servo.write(map(control.left.duty,0,255,0,180));
         RIGHT_ESC_servo.write(map(control.right.duty,0,255,0,180));
 
-        // Send enqueued msgs
         if(millis() - last_sent_millis > LORA_SLOWDOWN) {
+            // Send enqueued msgs
             last_sent_millis = millis();
-            if(uxQueueMessagesWaiting(telemetry_queue) > 0) {
-                xQueueReceive(telemetry_queue, &telemetry, 0);
-                send_via_radio((uint8_t *)&telemetry, sizeof(ESC_telemetry_t));
-                // DEBUG_TELEMETRY(&Serial, &telemetry);
-            }
+            xQueueReceive(telemetry_queue, &telemetry, 0);
+            send_via_radio((uint8_t *)&telemetry, sizeof(ESC_telemetry_t));
+            //digitalWrite(LED_BUILTIN, !digitalRead(LED_BUILTIN));
+            DEBUG_TELEMETRY(&Serial, &telemetry);
         }
-
         vTaskDelay(1); // Without this line watchdog resets the board
     }
     vTaskDelete(NULL);
@@ -143,9 +143,7 @@ void ESC_control_task(void* param) {
     }
 
     while (1) {
-        if(uxQueueMessagesWaiting(control_queue) > 0) {
-            xQueueReceive(control_queue, &control, 0);
-        }
+        xQueueReceive(control_queue, &control, 0);
         
         if(LEFT_ESC_serial.available()) {
             // DEBUG_PRINTLN("LEFT AVAILABLE");
@@ -177,8 +175,13 @@ void ESC_control_task(void* param) {
 }
 
 void setup() {
+    pinMode(LED_BUILTIN, OUTPUT);
+
     // Console output
     DEBUG_BEGIN(115200);
+
+    // Init radio interface
+    init_radio();
 
     // Init control msg queue
     control_queue = xQueueCreate(QUEUE_SIZE, sizeof(ESC_control_t));
@@ -189,7 +192,7 @@ void setup() {
     // Start ESC control task
     xTaskCreatePinnedToCore(ESC_control_task, "ESC_controller", 10000, NULL, 1, NULL, 0);
     // Start LoRa receiver task
-    xTaskCreatePinnedToCore(radio_receive_task, "radio_receiver", 10000, NULL, 1, NULL, 1);
+    xTaskCreatePinnedToCore(radio_receive_task, "radio_receiver", 100000, NULL, 1, NULL, 1);
 }
 
 void loop() {

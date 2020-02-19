@@ -12,7 +12,7 @@
 #define SOF_1 0xDE
 #define SOF_2 0xAD
 
-QueueHandle_t telemetry_queue;
+QueueHandle_t control_queue;
 
 void init_radio() {
     // Set SPI LoRa pins
@@ -24,6 +24,11 @@ void init_radio() {
         DEBUG_PRINTLN("LoRa initialization error");
         while(1);
     }
+
+    LoRa.setCodingRate4(LORA_CODING_RATE);
+    LoRa.setSpreadingFactor(LORA_SPREADING_FACTOR);
+    LoRa.setSignalBandwidth(LORA_BANDWIDTH);
+    LoRa.setTxPower(LORA_TX_POWER);
     LoRa.setSyncWord(LORA_SYNCWORD);
 }
 
@@ -61,6 +66,7 @@ void radio_receive_task(void* param) {
     uint8_t radio_buffer[sizeof(ESC_telemetry_t)];
     uint8_t index;
     ESC_control_t control;
+    long last_sent_millis = 0;
 
     memset(&control,0,sizeof(ESC_control_t));
 
@@ -74,10 +80,11 @@ void radio_receive_task(void* param) {
             // Serial.write(radio_rssi());
         }
 
-        // Send enqueued radio msgs
-        if(uxQueueMessagesWaiting(telemetry_queue) > 0) {
-            xQueueReceive(telemetry_queue, &control, 0);
+        if(millis() - last_sent_millis > LORA_SLOWDOWN) {
+            // Send enqueued radio msgs
+            xQueueReceive(control_queue, &control, 0);
             send_via_radio((uint8_t *)&control, sizeof(ESC_control_t));
+            last_sent_millis = millis();
         }
 
         vTaskDelay(1); // Without this line watchdog resets the board
@@ -121,7 +128,7 @@ void USB_receive_task(void* param) {
                     } else {
                         buffer[index] = incomingByte;
                         state = STATE_SOF_1;
-                        xQueueSend(telemetry_queue, buffer, 0);
+                        xQueueSend(control_queue, buffer, 0);
                     }
                 break;
                 default:
@@ -141,7 +148,7 @@ void setup() {
     Serial.begin(SERIAL_BAUDRATE);
 
     // Init control msg queue
-    telemetry_queue = xQueueCreate(QUEUE_SIZE, sizeof(ESC_control_t));
+    control_queue = xQueueCreate(QUEUE_SIZE, sizeof(ESC_control_t));
 
     // Initialize radio interface
     init_radio();

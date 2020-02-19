@@ -41,9 +41,9 @@ def main():
         if (ready_to_send):
             message_to_send = struct.pack('<BBBBBB', SOF_1, SOF_2, duty_left, 0, duty_right, 0)
             serial_port.write(message_to_send)
-            print("Sending message: " + str(message_to_send))
+            # print("Sending message: " + str(message_to_send))
             last_sent_millis = millis()
-            ready_to_send = False
+            ready_to_send = True
         while (serial_port.in_waiting > 0):
             received_byte = struct.unpack('B',serial_port.read())[0]
             # print(received_byte)
