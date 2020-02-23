@@ -12,5 +12,10 @@ def execute(args):
     # reading configuration
     with open(args.config_file, "r") as f_stream:
         config = yaml.load(f_stream, Loader=yaml.FullLoader)
-    
+
+    # now calling legacy code
+    from .legacy import main
+
+    main()
+        
     pass
