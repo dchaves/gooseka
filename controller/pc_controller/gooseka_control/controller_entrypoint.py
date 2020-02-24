@@ -1,5 +1,6 @@
 import logging
 import yaml
+from .fsm import FSM_Controller
 
 logger = logging.getLogger(__name__)
 
@@ -13,9 +14,10 @@ def execute(args):
     with open(args.config_file, "r") as f_stream:
         config = yaml.load(f_stream, Loader=yaml.FullLoader)
 
-    # now calling legacy code
-    from .legacy import main
+    controller = FSM_Controller(config)
+    controller.loop()
 
-    main()
-        
-    pass
+    # FIXME: remove legacy code
+    # now calling legacy code
+    #from .legacy import main
+    #main()
