@@ -1,5 +1,10 @@
+import os
 import numpy as np
-from .manual_commands import ManualCommands as Commands
+
+if os.getenv("GOOSEKA_BENCHY"):
+    from .benchy_commands import BenchyCommands as Commands
+else:
+    from .manual_commands import ManualCommands as Commands
 from .commands import CommandCodes
 from .io import MySerialComm
 
