@@ -1,7 +1,7 @@
 import os
 import numpy as np
 
-if os.getenv("GOOSEKA_BENCHY"):
+if os.environ.get("GOOSEKA") == "BENCHY":
     from .benchy_commands import BenchyCommands as Commands
 else:
     from .manual_commands import ManualCommands as Commands
