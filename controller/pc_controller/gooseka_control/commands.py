@@ -12,8 +12,13 @@ class Commands(object):
     def _set_duty_right(self, value):
         return (CommandCodes.DUTY_RIGHT, value)
 
-    def get_command(self):
-        """ Obtain the list of commands """
+    def get_command(self, telemetry):
+        """ Obtain the list of commands 
+
+        Keyword arguments:
+        telemetry -- dict with telemetry information
+
+        """
 
         return []
     

@@ -6,7 +6,7 @@ from .commands import Commands
 class ManualCommands(Commands):
     """ Gamepad controller """
 
-    def get_command(self):
+    def get_command(self, telemetry):
         """ Obtain the list of commands from the gamepad """
         
         code_list = []
