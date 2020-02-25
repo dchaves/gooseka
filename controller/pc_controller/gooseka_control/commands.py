@@ -23,4 +23,6 @@ class Commands(object):
         return []
     
     def __init__(self, config):
-        pass
+        """ Initialization """
+        
+        self.config = config

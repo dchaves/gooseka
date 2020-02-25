@@ -22,9 +22,11 @@ class FSM_Controller(object):
         
         duty_left = 0
         duty_right = 0
+
+        telemetry = {}
         
         while(1):
-            command_list = command.get_command()
+            command_list = command.get_command(telemetry)
 
             # set duty with commands
             for _command in command_list:

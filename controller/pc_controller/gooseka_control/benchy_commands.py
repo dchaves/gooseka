@@ -27,7 +27,7 @@ class BenchyCommands(Commands):
                 self.last_step_millis = current_millis
                 
                 if (self.direction == UP and
-                    (self.target_duty + self.config["BENCHY_STEP"] <= self.config["MAX_DUTY"])):
+                    (self.target_duty + self.config["BENCHY_STEP"] <= self.config["BENCHY_MAX_DUTY"])):
                     self.target_duty += self.config["BENCHY_STEP"]
 
                 elif self.direction == UP:
@@ -35,7 +35,7 @@ class BenchyCommands(Commands):
                     self.target_duty -= self.config["BENCHY_STEP"]
 
                 elif (self.direction == DOWN and
-                      (self.target_duty - self.config["BENCHY_STEP"] >= self.config["MIN_DUTY"])):
+                      (self.target_duty - self.config["BENCHY_STEP"] >= self.config["BENCHY_MIN_DUTY"])):
                     self.target_duty -= self.config["BENCHY_STEP"]
 
                 elif self.direction == DOWN:
@@ -64,9 +64,9 @@ class BenchyCommands(Commands):
                                 1.0 *self.config["BENCHY_MS_STEEP"]))
                     
         code_list = []
-        code_list.append(_set_duty_left(int(self.current_duty)))
-        code_list.append(_set_duty_right(int(self.current_duty)))
-
+        code_list.append(self._set_duty_left(int(self.current_duty)))
+        code_list.append(self._set_duty_right(int(self.current_duty)))
+        
         return code_list
         
     def __init__(self, config):
