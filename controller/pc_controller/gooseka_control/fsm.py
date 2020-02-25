@@ -1,3 +1,4 @@
+import numpy as np
 from .manual_commands import ManualCommands as Commands
 from .commands import CommandCodes
 from .io import MySerialComm
@@ -30,6 +31,14 @@ class FSM_Controller(object):
 
             # Only send commands if something has changed
             if len(command_list) > 0:
+
+                # limit duty to the maximum/minimum accepted
+                duty_left = np.clip(duty_left, self.config["MIN_DUTY"],
+                                    self.config["MAX_DUTY"])
+
+                duty_right = np.clip(duty_right, self.config["MIN_DUTY"],
+                                     self.config["MAX_DUTY"])
+                
                 serial_communication.send_packet(duty_left, duty_right)
 
             serial_communication.receive_telemmetry()
