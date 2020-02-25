@@ -7,7 +7,11 @@ class ManualCommands(Commands):
     """ Gamepad controller """
 
     def get_command(self, telemetry):
-        """ Obtain the list of commands from the gamepad """
+        """ Obtain the list of commands from the gamepad 
+
+        Keyword arguments:
+        telemetry -- dict with telemetry information
+        """
         
         code_list = []
         for event in events:
@@ -19,7 +23,7 @@ class ManualCommands(Commands):
 
         return code_list
     
-    def __init__(self):
+    def __init__(self, config):
         """ Initialization """
         
-        super(Commands, self).__init__()
+        super(ManualCommands, self).__init__(config)

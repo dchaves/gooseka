@@ -22,5 +22,5 @@ class Commands(object):
 
         return []
     
-    def __init__(self):
+    def __init__(self, config):
         pass

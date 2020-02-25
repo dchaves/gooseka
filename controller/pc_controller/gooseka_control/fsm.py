@@ -9,7 +9,7 @@ class FSM_Controller(object):
     def loop(self):
         """ Main loop """
 
-        command = Commands()
+        command = Commands(self.config)
 
         serial_communication = MySerialComm(self.config["SERIAL_PORT"],
                                             self.config["SERIAL_RATE"],
