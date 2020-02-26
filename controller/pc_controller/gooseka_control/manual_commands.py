@@ -17,9 +17,9 @@ class ManualCommands(Commands):
         for event in events:
             # print(event.code, event.state)
             if (event.code == "ABS_Z"):
-                code_list.append(_set_duty_left(event.state))
+                code_list.append(self._set_duty_left(event.state))
             if (event.code == "ABS_RZ"):
-                code_list.append(_set_duty_right(event.state))
+                code_list.append(self._set_duty_right(event.state))
 
         return code_list
     
