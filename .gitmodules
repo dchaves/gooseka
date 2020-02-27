@@ -1,0 +1,9 @@
+[submodule "gooseka-obu"]
+	path = gooseka-obu
+	url = git@github.com:dchaves/gooseka-obu.git
+[submodule "gooseka-rsu"]
+	path = gooseka-rsu
+	url = git@github.com:dchaves/gooseka-rsu.git
+[submodule "gooseka-controller"]
+	path = gooseka-controller
+	url = git@github.com:dchaves/gooseka-controller.git
