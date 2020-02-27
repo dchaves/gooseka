@@ -14,6 +14,7 @@ class ManualCommands(Commands):
         """
         
         code_list = []
+        events = get_gamepad()
         for event in events:
             # print(event.code, event.state)
             if (event.code == "ABS_Z"):

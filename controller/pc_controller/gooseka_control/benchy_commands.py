@@ -1,5 +1,9 @@
+import logging
 from .commands import Commands
 from .utils import millis
+
+
+logger = logging.getLogger(__name__)
 
 PLATEAU=0
 SLOPE=1
@@ -77,6 +81,9 @@ class BenchyCommands(Commands):
         code_list = []
         code_list.append(self._set_duty_left(int(self.current_duty)))
         code_list.append(self._set_duty_right(int(self.current_duty)))
+
+        #logger.info("DUTY {} TARGET {} STATE {} DIRECTION {}".format(
+        #    self.current_duty, self.target_duty, self.state, self.direction))
         
         return code_list
         

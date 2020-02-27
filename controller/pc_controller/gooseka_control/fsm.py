@@ -19,7 +19,8 @@ class FSM_Controller(object):
         serial_communication = MySerialComm(self.config["SERIAL_PORT"],
                                             self.config["SERIAL_RATE"],
                                             self.config["RADIO_IDLE_TIMEOUT"])
-        
+        last_duty_left = -1
+        last_duty_right = -1
         duty_left = 0
         duty_right = 0
 
@@ -45,8 +46,15 @@ class FSM_Controller(object):
 
                 duty_right = np.clip(duty_right, self.config["MIN_DUTY"],
                                      self.config["MAX_DUTY"])
-                
-                serial_communication.send_packet(duty_left, duty_right)
+
+                # only send the packet if duty left/right changed
+                if (last_duty_left != duty_left or
+                    last_duty_left != duty_right):
+                    
+                    serial_communication.send_packet(duty_left, duty_right)
+
+                    last_duty_left = duty_left
+                    last_duty_right = duty_right
 
             serial_communication.receive_telemmetry()
         
