@@ -3,6 +3,7 @@ from .utils import millis
 
 PLATEAU=0
 SLOPE=1
+STOP=2
 UP = 0
 DOWN = 1
 
@@ -42,6 +43,16 @@ class BenchyCommands(Commands):
                     self.direction = UP
                     self.target_duty += self.config["BENCHY_STEP"]
 
+                    # stop the car if it has reached the number of iterations
+                    if self.num_iterations is not None:
+                        self.num_iterations -= 1
+                        if self.num_iterations == 0:
+                            self.state = STOP
+
+        # stop the car
+        elif self.state == STOP:
+            self.target_duty = 0
+
         else:
             if (current_millis -  self.last_step_millis > self.config["BENCHY_MS_STEEP"]):
                 self.state = PLATEAU
@@ -72,7 +83,9 @@ class BenchyCommands(Commands):
     def __init__(self, config):
         """ Initialization """
         super(BenchyCommands, self).__init__(config)
-        
+
+        self.num_iterations = (self.config["BENCHY_ITERATIONS"]
+                               if "BENCHY_ITERATIONS" in self.config else None)
         self.last_step_millis = 0
         self.state = PLATEAU
         self.current_duty = 0
