@@ -26,6 +26,6 @@ El código se organiza en tres submódulos, organizados de la siguiente forma:
 
 | Repositorio | Estado | Descripción |
 |-------------|:------:|-------------|
-| [Controller](https://github.com/dchaves/gooseka-controller) | ![Python](https://github.com/dchaves/gooseka-controller/workflows/Python%20application/badge.svg) | Controlador del coche solar. Se encarga de traducir el input de usuario (mando) a órdenes para el coche, que envía por puerto serie (USB). |
+| [Controller](https://github.com/dchaves/gooseka-controller) | ![Python](https://github.com/dchaves/gooseka-controller/workflows/Python%20application/badge.svg?branch=master) | Controlador del coche solar. Se encarga de traducir el input de usuario (mando) a órdenes para el coche, que envía por puerto serie (USB). |
 | [RSU](https://github.com/dchaves/gooseka-rsu) | ![Build](https://github.com/dchaves/gooseka-rsu/workflows/Build/badge.svg?branch=master) | Gateway radio. Recibe mensajes via puerto serie (USB) y los envía via radio. |
 | [OBU](https://github.com/dchaves/gooseka-obu) | ![Build](https://github.com/dchaves/gooseka-obu/workflows/Build/badge.svg?branch=master) | Unidad de control empotrada para el coche solar. |
