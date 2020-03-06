@@ -1,0 +1,45 @@
+version: "3.7"
+services:
+    influxdb:
+        image: influxdb:latest
+        container_name: influxdb
+        ports:
+            - "8086:8086"
+        volumes:
+            - influxdb-data:/var/lib/influxdb
+            - ./config/influxdb.conf:/etc/influxdb/influxdb.conf
+        command: influxd -config /etc/influxdb/influxdb.conf
+
+    grafana:
+        image: grafana/grafana:latest
+        container_name: grafana
+        ports:
+            - "3000:3000"
+        links:
+            - influxdb
+        volumes:
+            - grafana-data:/var/lib/grafana
+            - ./config/grafana.ini:/etc/grafana/grafana.ini
+        command: grafana-server --homepath=/usr/share/grafana --config=/etc/grafana/grafana.ini --packaging=docker cfg:default.log.mode=console cfg:default.paths.data=/var/lib/grafana
+
+    mosquitto:
+        image: eclipse-mosquitto:latest
+        container_name: mosquitto
+        ports: 
+            - "1883:1883"
+        volumes:
+            - "./config/mosquitto.conf:/mosquitto/config/mosquitto.conf"
+
+    mqtt_gateway:
+        build: mqtt_gateway
+        image: mqtt_gateway
+        container_name: mqtt_gateway
+        links:
+            - mosquitto
+            - influxdb
+
+volumes:
+    influxdb-data:
+        name: influxdb-data
+    grafana-data:
+        name: grafana-data
