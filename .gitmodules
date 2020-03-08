@@ -7,3 +7,6 @@
 [submodule "gooseka-controller"]
 	path = gooseka-controller
 	url = git@github.com:dchaves/gooseka-controller.git
+[submodule "arduino-cli-esp32"]
+	path = arduino-cli-esp32
+	url = https://github.com/dchaves/arduino-cli-esp32.git
