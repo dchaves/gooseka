@@ -1,4 +1,2 @@
 #!/bin/bash
-cd gooseka-dashboard
-docker-compose up
-cd ..
+docker-compose -f gooseka-dashboard/docker-compose.yml up
