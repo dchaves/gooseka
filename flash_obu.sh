@@ -1,5 +1,5 @@
 #!/bin/bash
-DEV=/dev/ttyUSB1
+DEV=/dev/ttyUSB0
 
 cd arduino-cli-esp32
 docker build --tag arduino-cli-esp32 .
