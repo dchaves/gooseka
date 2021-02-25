@@ -16,3 +16,6 @@
 [submodule "arduino-cli-esp32"]
 	path = arduino-cli-esp32
 	url = git@github.com:dchaves/arduino-cli-esp32.git
+[submodule "platformio"]
+	path = platformio
+	url = git@github.com:dchaves/platformio.git
