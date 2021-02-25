@@ -1,5 +1,5 @@
 #!/bin/bash
 DEV="${1:-/dev/ttyUSB0}"
 
-docker build --tag arduino-cli-esp32 arduino-cli-esp32
-docker run -it --device=$DEV -v $(pwd)/gooseka-obu:/github/workspace arduino-cli-esp32 upload gooseka esp32:esp32:esp32doit-devkit-v1 $DEV
+docker build --tag platformio platformio
+docker run -it -v $(pwd)/gooseka-obu:/project --device $DEV platformio run --target upload --upload-port $DEV
