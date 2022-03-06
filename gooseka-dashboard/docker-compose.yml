@@ -8,7 +8,8 @@ services:
         volumes:
             - influxdb-data:/var/lib/influxdb
             - ./config/influxdb.conf:/etc/influxdb/influxdb.conf
-        command: influxd -config /etc/influxdb/influxdb.conf
+        environment:
+            - INFLUXD_CONFIG_PATH=/etc/influxdb/influxdb.conf
         networks: 
             - gooseka
 
