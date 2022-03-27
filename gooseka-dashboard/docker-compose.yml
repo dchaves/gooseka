@@ -2,30 +2,38 @@ version: "3.7"
 services:
     influxdb:
         image: influxdb:latest
-        container_name: influxdb
+        container_name: influxdb2
         ports:
             - "8086:8086"
         volumes:
-            - influxdb-data:/var/lib/influxdb
-            - ./config/influxdb.conf:/etc/influxdb/influxdb.conf
+            - ./influxdb-data/:/var/lib/influxdb2
+            - ./config/:/etc/influxdb2/
         environment:
-            - INFLUXD_CONFIG_PATH=/etc/influxdb/influxdb.conf
+            - DOCKER_INFLUXDB_INIT_MODE=setup
+            - DOCKER_INFLUXDB_INIT_USERNAME=gooseka
+            - DOCKER_INFLUXDB_INIT_PASSWORD=goosekagooseka
+            - DOCKER_INFLUXDB_INIT_ORG=gooseka
+            - DOCKER_INFLUXDB_INIT_BUCKET=gooseka
+            - DOCKER_INFLUXDB_INIT_ADMIN_TOKEN=goosekagooseka
+            - DOCKER_INFLUXDB_INIT_CLI_CONFIG_NAME=gooseka
+            - DOCKER_INFLUXDB_BOLT_PATH=/var/lib/influxdb2/bolt/influxdb.bolt
         networks: 
             - gooseka
 
     grafana:
-        image: grafana/grafana:latest
+        image: grafana/grafana-oss:latest
         container_name: grafana
         ports:
             - "3000:3000"
         links:
             - influxdb
         volumes:
-            - grafana-data:/var/lib/grafana
-            - ./config/grafana.ini:/etc/grafana/grafana.ini
+            - ./grafana-data:/var/lib/grafana
+            # - ./config/grafana.ini:/etc/grafana/grafana.ini
         command: grafana-server --homepath=/usr/share/grafana --config=/etc/grafana/grafana.ini --packaging=docker cfg:default.log.mode=console cfg:default.paths.data=/var/lib/grafana
         networks: 
             - gooseka
+        user: '1000'
 
     mosquitto:
         image: eclipse-mosquitto:latest
@@ -46,12 +54,6 @@ services:
             - influxdb
         networks: 
             - gooseka
-
-volumes:
-    influxdb-data:
-        name: influxdb-data
-    grafana-data:
-        name: grafana-data
 
 networks:
     gooseka:

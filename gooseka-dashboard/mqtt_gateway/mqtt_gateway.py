@@ -1,12 +1,14 @@
 import json
+import time
 import paho.mqtt.client as mqtt
-from influxdb import InfluxDBClient
+from influxdb_client import InfluxDBClient, Point
+from influxdb_client.client.write_api import SYNCHRONOUS
 
-INFLUXDB_ADDRESS = 'influxdb'
-INFLUXDB_USER = ''
-INFLUXDB_PASSWORD = ''
-INFLUXDB_DATABASE = 'gooseka'
+INFLUXDB_ADDRESS = 'http://influxdb:8086'
+INFLUXDB_ORG = 'gooseka'
+INFLUXDB_TOKEN = 'goosekagooseka'
 INFLUXDB_PORT = 8086
+INFLUXDB_BUCKET = 'gooseka'
 
 MQTT_ADDRESS = 'mosquitto'
 MQTT_PORT = 1883
@@ -14,18 +16,17 @@ MQTT_USER = ''
 MQTT_PASSWORD = ''
 MQTT_TOPIC = '/gooseka/#'
 
-influxdb_client = InfluxDBClient(host=INFLUXDB_ADDRESS, port=INFLUXDB_PORT, retries=20)
 
 def on_connect(client, userdata, flags, rc):
     """ The callback for when the client receives a CONNACK response from the server."""
-    print('Connected with result code ' + str(rc))
+    print('Connected with result code ' + str(rc), flush=True)
     client.subscribe(MQTT_TOPIC)
 
 def _send_sensor_data_to_influxdb(sensor_data):
     try:
         json_body = [
             {
-                'time': sensor_data['left']['timestamp'],
+                # 'time': sensor_data['left']['timestamp'],
                 'measurement': 'left',
                 'fields': {
                     'temperature': sensor_data['left']['temperature'],
@@ -37,7 +38,7 @@ def _send_sensor_data_to_influxdb(sensor_data):
                 }
             },
             {
-                'time': sensor_data['right']['timestamp'],
+                # 'time': sensor_data['right']['timestamp'],
                 'measurement': 'right',
                 'fields': {
                     'temperature': sensor_data['right']['temperature'],
@@ -51,8 +52,10 @@ def _send_sensor_data_to_influxdb(sensor_data):
         ]
     except ValueError:
         return
-    # print(json.dumps(json_body,indent=4))
-    influxdb_client.write_points(points=json_body, database=INFLUXDB_DATABASE, protocol='json', time_precision='ms')
+    # print(json.dumps(json_body,indent=4), flush=True)
+    # influxdb_client.write_points(points=json_body, database=INFLUXDB_DATABASE, protocol='json', time_precision='ms')
+    write_api.write(bucket=INFLUXDB_BUCKET, org=INFLUXDB_ORG, record=json_body)
+
 
 def on_message(client, userdata, msg):
     """The callback for when a PUBLISH message is received from the server."""
@@ -64,13 +67,18 @@ def on_message(client, userdata, msg):
     _send_sensor_data_to_influxdb(sensor_data)
 
 if __name__ == '__main__':
-    # print('MQTT to InfluxDB bridge')
-    influxdb_client.create_database(INFLUXDB_DATABASE)
+    print('MQTT to InfluxDB bridge')
+
+    print('Connecting to %s' % INFLUXDB_ADDRESS)
+    influxdb_client = InfluxDBClient(url=INFLUXDB_ADDRESS, token=INFLUXDB_TOKEN, org=INFLUXDB_ORG)
+    print('Connected')
+    write_api = influxdb_client.write_api(write_options=SYNCHRONOUS)
 
     mqtt_client = mqtt.Client()
-    # mqtt_client.username_pw_set(MQTT_USER, MQTT_PASSWORD)
+    # # mqtt_client.username_pw_set(MQTT_USER, MQTT_PASSWORD)
     mqtt_client.on_connect = on_connect
     mqtt_client.on_message = on_message
 
     mqtt_client.connect(MQTT_ADDRESS, MQTT_PORT)
+    print('...',flush=True)
     mqtt_client.loop_forever()
