@@ -19,3 +19,6 @@
 [submodule "platformio"]
 	path = platformio
 	url = git@github.com:dchaves/platformio.git
+[submodule "gooseka-3d"]
+	path = gooseka-3d
+	url = git@github.com:dchaves/gooseka-3d.git
