@@ -2,17 +2,17 @@
 	path = gooseka-obu
 	url = git@github.com:dchaves/gooseka-obu.git
 	update = merge
-	branch = .
+	branch = master
 [submodule "gooseka-rsu"]
 	path = gooseka-rsu
 	url = git@github.com:dchaves/gooseka-rsu.git
 	update = merge
-	branch = .
+	branch = master
 [submodule "gooseka-controller"]
 	path = gooseka-controller
 	url = git@github.com:dchaves/gooseka-controller.git
 	update = merge
-	branch = .
+	branch = master
 [submodule "arduino-cli-esp32"]
 	path = arduino-cli-esp32
 	url = git@github.com:dchaves/arduino-cli-esp32.git
@@ -22,3 +22,4 @@
 [submodule "gooseka-3d"]
 	path = gooseka-3d
 	url = git@github.com:dchaves/gooseka-3d.git
+	branch = master
